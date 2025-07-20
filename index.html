@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saisie de Texte Amusante</title>
+    <!-- Chargement de Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Définition de la police Inter pour une meilleure lisibilité */
+        body {
+            font-family: "Inter", sans-serif;
+            overflow: hidden; /* Empêche les barres de défilement pendant certains effets */
+            transition: background-color 0.5s ease-in-out, filter 0.5s ease-in-out;
+        }
+        /* Styles pour l'indicateur subtil (texte vert) */
+        .text-success-fade {
+            color: #22c55e !important; /* Vert Tailwind (green-500) avec !important pour s'assurer qu'il prime */
+        }
+
+        /* Keyframes pour l'animation de secousse */
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+        /* Classe pour l'animation de secousse */
+        .shake-animation {
+            animation: shake 0.3s ease-in-out 3; /* Secoue 3 fois */
+        }
+
+        /* Keyframes pour l'animation de pulsation */
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.01); }
+            100% { transform: scale(1); }
+        }
+        /* Classe pour l'animation de pulsation */
+        .pulse-animation {
+            animation: pulse 0.5s ease-in-out 2; /* Pulse 2 fois */
+        }
+
+        /* Keyframes pour le fondu */
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+        /* Classe pour le fondu */
+        .fade-out-animation {
+            animation: fadeOut 1s forwards;
+        }
+
+        /* Keyframes pour le clignotement */
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+
+        /* Styles pour les motifs de fond */
+        .bg-grid {
+            background-image: linear-gradient(to right, lightgray 1px, transparent 1px),
+                              linear-gradient(to bottom, lightgray 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .bg-polka-dot {
+            background-image: radial-gradient(circle, lightgray 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .bg-stripes {
+            background-image: linear-gradient(45deg, lightgray 25%, transparent 25%, transparent 50%, lightgray 50%, lightgray 75%, transparent 75%, transparent);
+            background-size: 40px 40px;
+        }
+        .bg-gradient-animated {
+            background: linear-gradient(270deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #9400d3);
+            background-size: 400% 400%;
+            animation: gradientAnimation 15s ease infinite;
+        }
+        @keyframes gradientAnimation {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+    </style>
+</head>
+<body class="bg-white flex items-center justify-center min-h-screen p-4">
+    <div class="relative w-full h-full flex flex-col items-center justify-center">
+        <!-- Zone de texte pour la saisie -->
+        <textarea
+            id="textArea"
+            class="w-full h-full p-8 bg-white focus:outline-none resize-none text-gray-700 placeholder-gray-400 text-lg transition-colors duration-500 ease-in-out"
+            placeholder="Écrivez votre texte ici..."
+            style="min-height: calc(100vh - 2rem);" /* Ajuste la hauteur pour prendre presque tout l'écran, moins le padding */
+        ></textarea>
+    </div>
+
+    <script>
+        // Récupération des éléments du DOM
+        const textArea = document.getElementById('textArea');
+        const body = document.body;
+
+        // Fonction pour copier du texte dans le presse-papiers
+        function copyToClipboard(text) {
+            const tempInput = document.createElement('textarea');
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            console.log("Texte copié dans le presse-papiers !");
+        }
+
+        // Fonction pour réinitialiser tous les styles de fond du corps
+        function resetBodyStyles() {
+            body.style.backgroundColor = 'white';
+            body.style.backgroundImage = 'none';
+            body.style.backgroundSize = 'auto';
+            body.style.filter = 'none';
+            body.style.cursor = 'default';
+            body.classList.remove('bg-gradient-animated', 'bg-grid', 'bg-polka-dot', 'bg-stripes'); // Supprime toutes les classes de fond connues
+        }
+
+        // Fonction pour réinitialiser tous les styles de la zone de texte (sauf la couleur de base gérée par Tailwind)
+        function resetTextAreaStyles() {
+            textArea.classList.remove('text-success-fade', 'shake-animation', 'pulse-animation', 'fade-out-animation'); // Supprime toutes les classes d'animation/effet connues
+            textArea.style.color = ''; // Réinitialise la couleur inline (laisse Tailwind reprendre le contrôle)
+            textArea.style.animation = '';
+            textArea.style.transform = '';
+            textArea.style.fontSize = ''; // Réinitialise la taille de police inline
+            textArea.style.border = '';
+            textArea.style.opacity = '';
+            textArea.readOnly = false;
+            // Réinitialise le placeholder si une action l'a modifié
+            if (textArea.placeholder !== "Écrivez votre texte ici...") {
+                textArea.placeholder = "Écrivez votre texte ici...";
+            }
+        }
+
+        // Définition des mots de passe et de leurs actions uniques associées
+        const passwordActions = {
+            "Liste_De_Mot": {
+                description: "Affiche la liste de tous les mots de passe et leurs actions.",
+                action: () => {
+                    const listContainer = document.createElement('div');
+                    listContainer.id = 'passwordListContainer';
+                    listContainer.className = 'fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 z-50';
+                    listContainer.innerHTML = `
+                        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto relative">
+                            <button id="closeListButton" class="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-2xl font-bold">&times;</button>
+                            <h2 class="text-2xl font-bold text-gray-800 mb-4 text-center">Liste des Mots de Passe et Actions</h2>
+                            <ul class="list-disc pl-5 text-gray-700">
+                                ${Object.entries(passwordActions).map(([pwd, data]) => `
+                                    <li class="mb-2">
+                                        <strong class="text-blue-600">${pwd}</strong>: ${data.description || 'Description non disponible.'}
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    `;
+                    document.body.appendChild(listContainer);
+
+                    document.getElementById('closeListButton').addEventListener('click', () => {
+                        document.body.removeChild(listContainer);
+                    });
+                }
+            },
+            "Les_Rats_Suprêmes": {
+                description: "Ouvre une vidéo de Rick Roll dans un nouvel onglet.",
+                action: () => window.open("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "_blank")
+            },
+            "Fond_Jaune_Éclair": {
+                description: "Change le fond de la page en jaune vif (persistant).",
+                action: () => {
+                    body.style.backgroundColor = '#FFFF00'; // Jaune vif
+                }
+            },
+            "Chat_Volant": {
+                description: "Ouvre une image d'un chat volant rigolo dans un nouvel onglet.",
+                action: () => window.open("https://placehold.co/400x300/FF5733/FFFFFF?text=Image+de+Chat+Volant", "_blank")
+            },
+            "Secousse_Textuelle": {
+                description: "Fait trembler la zone de texte temporairement.",
+                action: () => {
+                    textArea.classList.add('shake-animation');
+                    setTimeout(() => textArea.classList.remove('shake-animation'), 1000);
+                }
+            },
+            "Inversion_Magique": {
+                description: "Inverse les couleurs de la page (persistant).",
+                action: () => {
+                    body.style.filter = 'invert(100%)';
+                }
+            },
+            "Chaussette_Perdue": {
+                description: "Affiche un message de recherche de chaussette perdue dans la console.",
+                action: () => {
+                    console.log("Recherche de la chaussette perdue... 🕵️‍♀️🧦");
+                }
+            },
+            "Texte_Sombre": {
+                description: "Change la couleur du texte de la zone de saisie en noir (persistant).",
+                action: () => {
+                    textArea.style.color = 'black';
+                }
+            },
+            "Nuage_Qui_Pète": {
+                description: "Affiche un message de 'bruit de nuage' dans la console.",
+                action: () => {
+                    console.log("💨 Pffft... Excusez-moi, c'était le nuage.");
+                }
+            },
+            "Brocoli_Géant": {
+                description: "Ouvre une image d'un brocoli géant dans un nouvel onglet.",
+                action: () => window.open("https://placehold.co/400x300/4CAF50/FFFFFF?text=Image+de+Brocoli+G%C3%A9ant", "_blank")
+            },
+            "Texte_Clignotant": {
+                description: "Fait clignoter le texte de la zone de saisie temporairement.",
+                action: () => {
+                    textArea.style.animation = 'blink 0.5s infinite';
+                    setTimeout(() => textArea.style.animation = 'none', 2000);
+                }
+            },
+            "Robot_Qui_Ronfle": {
+                description: "Affiche un dessin ASCII d'un robot qui ronfle dans la console.",
+                action: () => {
+                    console.log("Zzzzz... 🤖\n( o.o )\n \\_ _/");
+                }
+            },
+            "Écureuil_Astronaute": {
+                description: "Ouvre une image d'un écureuil astronaute dans un nouvel onglet.",
+                action: () => window.open("https://placehold.co/400x300/8B4513/FFFFFF?text=Image+d'%C3%89cureuil+Astronaute", "_blank")
+            },
+            "Placeholder_Chanteur": {
+                description: "Change le texte du placeholder en une phrase chantante temporairement.",
+                action: () => {
+                    const originalPlaceholder = textArea.placeholder;
+                    textArea.placeholder = "La citrouille chante ! 🎃🎤";
+                    setTimeout(() => textArea.placeholder = originalPlaceholder, 2000);
+                }
+            },
+            "Dauphin_En_Pyjama": {
+                description: "Ouvre une image d'un dauphin en pyjama dans un nouvel onglet.",
+                action: () => window.open("https://placehold.co/400x300/00BFFF/FFFFFF?text=Image+de+Dauphin+en+Pyjama", "_blank")
+            },
+            "Spaghetti_Volant": {
+                description: "Affiche une bénédiction du Monstre en Spaghetti Volant dans la console.",
+                action: () => {
+                    console.log("Que le Monstre en Spaghetti Volant vous bénisse ! 🙏🍝");
+                }
+            },
+            "Pingouin_Glissant": {
+                description: "Ouvre une image d'un pingouin glissant dans un nouvel onglet.",
+                action: () => window.open("https://placehold.co/400x300/ADD8E6/000000?text=Image+de+Pingouin+Glissant", "_blank")
+            },
+            "Arbre_Qui_Parle": {
+                description: "Affiche une phrase de sagesse d'un arbre dans la console.",
+                action: () => {
+                    console.log("Je suis Groot... non, juste un arbre avec des pensées. 🌳🤔");
+                }
+            },
+            "Vampire_Végétarien": {
+                description: "Affiche la préférence alimentaire d'un vampire végétarien dans la console.",
+                action: () => {
+                    console.log("Mmm, du jus de betterave frais ! 🧛‍♂️🥕");
+                }
+            },
+            "Sorcière_En_Trottinette": {
+                description: "Ouvre une image d'une sorcière en trottinette dans un nouvel onglet.",
+                action: () => window.open("https://placehold.co/400x300/9932CC/FFFFFF?text=Image+de+Sorci%C3%A8re+en+Trottinette", "_blank")
+            },
+            "Dragon_Sous_Marin": {
+                description: "Affiche le souffle aquatique d'un dragon dans la console.",
+                action: () => {
+                    console.log("Bloup bloup... attention à ma bulle de feu sous-marine ! 🐉💧");
+                }
+            },
+            "Fantôme_Joyeux": {
+                description: "Affiche un message amical d'un fantôme dans la console.",
+                action: () => {
+                    console.log("Bouh ! Mais c'est un bouh amical ! 👻😊");
+                }
+            },
+            "Étoile_Filante_Lente": {
+                description: "Affiche un message d'une étoile filante qui prend son temps dans la console.",
+                action: () => {
+                    console.log("Je suis une étoile filante... mais je prends mon temps. ✨🐢");
+                },
+            },
+            "Cactus_Dansant": {
+                description: "Ouvre une image d'un cactus dansant dans un nouvel onglet.",
+                action: () => window.open("https://placehold.co/400x300/228B22/FFFFFF?text=Image+de+Cactus+Dansant", "_blank")
+            },
+            "Livre_Qui_Rit": {
+                description: "Affiche un message d'un livre hilarant dans la console.",
+                action: () => {
+                    console.log("Hé hé hé... ce chapitre est hilarant ! 📖😂");
+                }
+            },
+            "Baleine_A_Roulettes": {
+                description: "Ouvre une image d'une baleine à roulettes dans un nouvel onglet.",
+                action: () => window.open("https://placehold.co/400x300/1E90FF/FFFFFF?text=Image+de+Baleine+%C3%A0+Roulettes", "_blank")
+            },
+            "Chocolat_Qui_Parle": {
+                description: "Affiche un message d'une tablette de chocolat parlante dans la console.",
+                action: () => {
+                    console.log("Miam, je suis délicieux et j'ai des choses à dire ! 🍫🗣️");
+                }
+            },
+            "Nuage_En_Forme_De_Chien": {
+                description: "Ouvre une image d'un nuage en forme de chien dans un nouvel onglet.",
+                action: () => window.open("https://placehold.co/400x300/B0C4DE/000000?text=Image+de+Nuage+en+Chien", "_blank")
+            },
+            "Chaise_Musical": {
+                description: "Affiche un compte à rebours de chaise musicale dans la console.",
+                action: () => {
+                    console.log("La musique s'arrête dans 3... 2... 1... 🪑🎶");
+                }
+            },
+            "Montagne_Qui_Éternue": {
+                description: "Affiche un message d'une montagne qui éternue dans la console.",
+                action: () => {
+                    console.log("ATCHOUM ! Attention aux rochers qui volent ! ⛰️🤧");
+                }
+            },
+            "Serpent_A_Lunettes": {
+                description: "Ouvre une image d'un serpent à lunettes dans un nouvel onglet.",
+                action: () => window.open("https://placehold.co/400x300/6B8E23/FFFFFF?text=Image+de+Serpent+%C3%A0+Lunettes", "_blank")
+            },
+            "Fée_Des_Dents_Musclée": {
+                description: "Affiche un message de la Fée des Dents musclée dans la console.",
+                action: () => {
+                    console.log("Vos dents sont en sécurité avec moi, la Fée des Dents musclée ! 🦷💪");
+                }
+            },
+            "Feu_Follet_Timide": {
+                description: "Affiche un message d'un feu follet timide dans la console.",
+                action: () => {
+                    console.log("Je me cache un peu... je suis un peu timide. 🔥🙈");
+                }
+            },
+            "Gnome_Jardinier_Spatial": {
+                description: "Ouvre une image d'un gnome jardinier spatial dans un nouvel onglet.",
+                action: () => window.open("https://placehold.co/400x300/800080/FFFFFF?text=Image+de+Gnome+Spatial", "_blank")
+            },
+            "Plante_Carnivore_Vegan": {
+                description: "Affiche le régime alimentaire spécial d'une plante carnivore dans la console.",
+                action: () => {
+                    console.log("Je mange des légumes, pas des mouches. C'est mon régime. 🌿🥗");
+                }
+            },
+            "Arc_En_Ciel_Noir_Et_Blanc": {
+                description: "Affiche un message d'un arc-en-ciel monochrome dans la console.",
+                action: () => {
+                    console.log("Un arc-en-ciel en noir et blanc, c'est chic ! 🌈⚫⚪");
+                }
+            },
+            "Oiseau_Qui_Fait_Du_Vélo": {
+                description: "Ouvre une image d'un oiseau faisant du vélo dans un nouvel onglet.",
+                action: () => window.open("https://placehold.co/400x300/FFD700/000000?text=Image+d'Oiseau+%C3%A0+V%C3%A9lo", "_blank")
+            },
+            "Clown_Triste_Heureux": {
+                description: "Affiche un message paradoxal d'un clown dans la console.",
+                action: () => {
+                    console.log("Je suis triste d'être heureux, c'est mon fardeau de clown. 🤡🎭");
+                }
+            },
+            "Table_Flottante": {
+                description: "Affiche un message d'une table flottante dans la console.",
+                action: () => {
+                    console.log("Attention, ça tangue un peu sur cette table flottante ! 🪑☁️");
+                }
+            },
+            "Mur_Qui_Écoute": {
+                description: "Affiche un message d'un mur qui écoute dans la console.",
+                action: () => {
+                    console.log("Chut... le mur écoute. Il sait tout. 👂🧱");
+                }
+            },
+            "Lumiere_Qui_Danse": {
+                description: "Affiche un message d'une lumière qui danse dans la console.",
+                action: () => {
+                    console.log("Flash ! Flash ! Flash ! C'est la lumière qui danse ! 💡🕺");
+                }
+            },
+            "Bouteille_Message_Vide": {
+                description: "Affiche un message d'une bouteille avec un message vide dans la console.",
+                action: () => {
+                    console.log("Le message est dans la bouteille... oh, elle est vide. Mystère ! 🍾✉️");
+                }
+            },
+            "Bateau_Volant_Sous_L_Eau": {
+                description: "Affiche un message d'un véhicule polyvalent dans la console.",
+                action: () => {
+                    console.log("Je suis un bateau volant sous l'eau, très polyvalent ! ⛵🐠");
+                },
+            },
+            "Crayon_Dessine_Pizzas": {
+                description: "Ouvre une image d'une pizza dessinée par un crayon magique.",
+                action: () => window.open("https://placehold.co/400x300/FFA07A/FFFFFF?text=Image+de+Pizza+Dessin%C3%A9e", "_blank")
+            },
+            "Baguette_Sans_Piles": {
+                description: "Affiche un message d'une baguette magique avec des piles faibles dans la console.",
+                action: () => {
+                    console.log("Bip boop... piles faibles. Ma magie est un peu faible. 🔋🪄");
+                }
+            },
+            "Robot_Jardinier_Fou": {
+                description: "Ouvre une image d'un robot jardinier fou dans un nouvel onglet.",
+                action: () => window.open("https://placehold.co/400x300/7CFC00/000000?text=Image+de+Robot+Jardinier+Fou", "_blank")
+            },
+            "Chaussette_Parlante": {
+                description: "Affiche un message d'une chaussette parlante dans la console.",
+                action: () => {
+                    console.log("Salut ! Je suis une chaussette, et j'ai des choses à raconter. 🧦💬");
+                }
+            },
+            "Girafe_Skateboard": {
+                description: "Ouvre une image d'une girafe en skateboard dans un nouvel onglet.",
+                action: () => window.open("https://placehold.co/400x300/FFDAB9/000000?text=Image+de+Girafe+Skateboard", "_blank")
+            },
+            "Tasse_Café_Géante": {
+                description: "Affiche un message d'une tasse de café géante dans la console.",
+                action: () => {
+                    console.log("Besoin d'un coup de fouet ? J'ai une tasse géante pour vous ! ☕⬆️");
+                }
+            },
+            "Éléphant_Invisible": {
+                description: "Affiche un message d'un éléphant invisible dans la console.",
+                action: () => {
+                    console.log("Ne me cherchez pas, je suis là... invisible. 🐘👻");
+                }
+            },
+            "Tableau_Qui_Bouge": {
+                description: "Ouvre une image d'un tableau animé dans un nouvel onglet.",
+                action: () => window.open("https://placehold.co/400x300/A9A9A9/FFFFFF?text=Image+de+Tableau+Anim%C3%A9", "_blank")
+            },
+            "Cochon_Volant_Rose": {
+                description: "Ouvre une image d'un cochon volant rose dans un nouvel onglet.",
+                action: () => window.open("https://placehold.co/400x300/FFB6C1/000000?text=Image+de+Cochon+Volant", "_blank")
+            },
+            "Arbre_Noël_Été": {
+                description: "Affiche un message d'un arbre de Noël en été dans la console.",
+                action: () => {
+                    console.log("Joyeux Noël en juillet ! L'esprit des fêtes est intemporel. 🎄☀️");
+                }
+            },
+            "Balle_Intelligente": {
+                description: "Affiche un message d'une balle rebondissante intelligente dans la console.",
+                action: () => {
+                    console.log("Je rebondis avec sagesse, pas juste au hasard. 🏀🧠");
+                }
+            },
+            "Porte_Qui_Parle": {
+                description: "Affiche un message d'une porte parlante dans la console.",
+                action: () => {
+                    console.log("Bienvenue ! Ou au revoir... je suis une porte très bavarde. 🚪🗣️");
+                },
+            },
+            "Texte_Invisible": {
+                description: "Rend le texte de la zone de saisie invisible (persistant).",
+                action: () => { // Make textarea text disappear temporarily
+                    textArea.style.opacity = '0';
+                }
+            },
+            "Flash_Lumineux": {
+                description: "Fait un flash lumineux sur le fond de la page (persistant).",
+                action: () => {
+                    body.style.backgroundColor = '#FFFF00';
+                }
+            },
+            "Gâteau_Explosif": {
+                description: "Ouvre une image d'un gâteau qui explose.",
+                action: () => window.open("https://placehold.co/400x300/FF0000/FFFFFF?text=Image+de+G%C3%A2teau+Explos%C3%A9", "_blank")
+            },
+            "Grenouille_Chanteuse": {
+                description: "Affiche un message d'une grenouille qui chante dans la console.",
+                action: () => { // Console log a frog singing
+                    console.log("Croa croa ! La grenouille chante l'opéra ! 🐸🎤");
+                }
+            },
+            "Horloge_Recule": {
+                description: "Affiche un message de temps qui recule dans la console.",
+                action: () => { // Console log time going backwards
+                    console.log("Le temps recule... tic-tac-cot-cit ! ⏳⏪");
+                }
+            },
+            "Insecte_Géant_Sympa": {
+                description: "Ouvre une image d'un insecte géant amical.",
+                action: () => window.open("https://placehold.co/400x300/808000/FFFFFF?text=Image+d'Insecte+G%C3%A9ant+Amical", "_blank")
+            },
+            "Monde_Flou": {
+                description: "Applique un effet de flou à la page (persistant).",
+                action: () => {
+                    body.style.filter = 'blur(5px)';
+                }
+            },
+            "Kangourou_Boxeur": {
+                description: "Affiche un message d'un kangourou boxeur dans la console.",
+                action: () => {
+                    console.log("Ding ding ding ! Le kangourou boxeur est prêt ! 🥊🦘");
+                }
+            },
+            "Curseur_Perdu": {
+                description: "Change le curseur de la souris en 'interdit' (persistant).",
+                action: () => {
+                    body.style.cursor = 'not-allowed';
+                }
+            },
+            "Miroir_Menteur": {
+                description: "Change le texte du placeholder en un message mensonger temporairement.",
+                action: () => {
+                    const originalPlaceholder = textArea.placeholder;
+                    textArea.placeholder = "Vous êtes le plus laid du royaume ! 😈";
+                    setTimeout(() => textArea.placeholder = originalPlaceholder, 2000);
+                }
+            },
+            "Navire_Spatial_Bouteille": {
+                description: "Ouvre une image d'un navire spatial en bouteille.",
+                action: () => window.open("https://placehold.co/400x300/4682B4/FFFFFF?text=Image+de+Navire+Spatial+en+Bouteille", "_blank")
+            },
+            "Ours_Polair_Maillot": {
+                description: "Affiche un message d'un ours polaire en maillot de bain dans la console.",
+                action: () => {
+                    console.log("Il fait chaud pour un ours polaire en maillot ! 🐻‍❄️👙");
+                }
+            },
+            "Plume_Automatique": {
+                description: "Simule l'écriture automatique d'un texte dans la zone de saisie.",
+                action: () => {
+                    resetTextAreaStyles(); // Reset before typing to clear previous effects
+                    const originalValue = textArea.value;
+                    textArea.value = ""; // Clear current text for typing effect
+                    const textToType = "La plume écrit toute seule... ✍️";
+                    let i = 0;
+                    const typingInterval = setInterval(() => {
+                        if (i < textToType.length) {
+                            textArea.value += textToType.charAt(i);
+                            i++;
+                        } else {
+                            clearInterval(typingInterval);
+                            setTimeout(() => textArea.value = originalValue, 1500); // Restore original text
+                        }
+                    }, 50);
+                }
+            },
+            "Cycle_Saisonnier": {
+                description: "Fait défiler les couleurs de fond de la page pour simuler les saisons (persistant).",
+                action: () => {
+                    const colors = ['#87CEEB', '#90EE90', '#FFA07A', '#DDA0DD']; // Spring, Summer, Autumn, Winter
+                    let i = 0;
+                    // Clear previous interval if any
+                    if (body.dataset.seasonalInterval) {
+                        clearInterval(parseInt(body.dataset.seasonalInterval));
+                    }
+                    const interval = setInterval(() => {
+                        body.style.backgroundColor = colors[i % colors.length];
+                        i++;
+                    }, 300);
+                    body.dataset.seasonalInterval = interval.toString(); // Store interval ID
+                }
+            },
+            "Robot_Serveur_Maladroit": {
+                description: "Affiche un message d'un robot serveur maladroit dans la console.",
+                action: () => {
+                    console.log("Oups ! J'ai fait tomber le plateau... Bip boop. 🤖🤦‍♂️");
+                }
+            },
+            "Sirène_Rockstar": {
+                description: "Ouvre une image d'une sirène rockstar.",
+                action: () => window.open("https://placehold.co/400x300/FF69B4/FFFFFF?text=Image+de+Sir%C3%A8ne+Rockstar", "_blank")
+            },
+            "Tasse_Tournante": {
+                description: "Fait légèrement pivoter la zone de saisie (persistant).",
+                action: () => {
+                    textArea.style.transform = 'rotate(2deg)';
+                }
+            },
+            "Police_Géante": {
+                description: "Augmente la taille de la police de la zone de saisie (persistant).",
+                action: () => {
+                    textArea.style.fontSize = '2.5rem';
+                }
+            },
+            "Volcan_De_Glace": {
+                description: "Ouvre une image d'un volcan de glace.",
+                action: () => window.open("https://placehold.co/400x300/ADD8E6/FF0000?text=Image+de+Volcan+de+Glace", "_blank")
+            },
+            "Wagon_Fantôme": {
+                description: "Affiche un message effrayant de wagon fantôme dans la console.",
+                action: () => {
+                    console.log("Un frisson vous parcourt... 👻🚂");
+                }
+            },
+            "Xylophone_Géant": {
+                description: "Affiche un message musical de xylophone géant dans la console.",
+                action: () => {
+                    console.log("Ding ! Dong ! Une mélodie géante ! 🎶");
+                }
+            },
+            "Yéti_Frileux": {
+                description: "Affiche un message d'un Yéti frileux dans la console.",
+                action: () => {
+                    console.log("Brrr... J'ai froid même en fourrure ! 🥶👣");
+                }
+            },
+            "Zèbre_En_Pyjama": {
+                description: "Ouvre une image d'un zèbre en pyjama.",
+                action: () => window.open("https://placehold.co/400x300/000000/FFFFFF?text=Image+de+Z%C3%A8bre+en+Pyjama", "_blank")
+            },
+            "Baleine_Chanteuse_Opera": {
+                description: "Affiche un message d'une baleine qui chante l'opéra dans la console.",
+                action: () => {
+                    console.log("Aaaaaahhhhhh... une baleine chante l'opéra ! 🐳🎵");
+                }
+            },
+            "Château_Sable_Volant": {
+                description: "Ouvre une image d'un château de sable volant.",
+                action: () => window.open("https://placehold.co/400x300/F4A460/FFFFFF?text=Image+de+Ch%C3%A2teau+de+Sable+Volant", "_blank")
+            },
+            "Détective_Canard": {
+                description: "Affiche un message de détective canard dans la console.",
+                action: () => {
+                    console.log("Élémentaire, mon cher Watson... ou plutôt, mon cher canard ! 🦆🔎");
+                }
+            },
+            "Éponge_Qui_Parle": {
+                description: "Affiche un message d'une éponge parlante dans la console.",
+                action: () => {
+                    console.log("Je suis une éponge, et j'absorbe toutes les rumeurs ! 🧽👂");
+                }
+            },
+            "Danse_Florale": {
+                description: "Change le fond de la page en un motif floral (persistant).",
+                action: () => {
+                    body.style.backgroundImage = 'url("https://placehold.co/100x100/FFC0CB/000000?text=%F0%9F%8C%B8")'; // Using emoji in text for placeholder
+                    body.style.backgroundRepeat = 'repeat';
+                }
+            },
+            "Bordure_Rouge": {
+                description: "Ajoute une bordure rouge épaisse à la zone de saisie (persistant).",
+                action: () => {
+                    textArea.style.border = '5px solid red';
+                }
+            },
+            "Hérisson_Jongleur": {
+                description: "Ouvre une image d'un hérisson jongleur.",
+                action: () => window.open("https://placehold.co/400x300/A0522D/FFFFFF?text=Image+d'H%C3%A9risson+Jongleur", "_blank")
+            },
+            "Jeu_Devine_Nombre": {
+                description: "Lance un jeu 'Devine le nombre' dans la console.",
+                action: () => {
+                    console.log("--- Jeu : Devine le nombre ! ---");
+                    const targetNumber = Math.floor(Math.random() * 10) + 1;
+                    console.log("J'ai choisi un nombre entre 1 et 10. Indice : le nombre est " + (targetNumber % 2 === 0 ? "pair" : "impair") + ".");
+                    console.log("Pour jouer, tapez 'Je_Devine_X' où X est votre supposition. (Ex: Je_Devine_5)");
+                }
+            },
+            "Jeu_Pierre_Ciseaux": {
+                description: "Lance un jeu 'Pierre-Feuille-Ciseaux' dans la console.",
+                action: () => {
+                    console.log("--- Jeu : Pierre-Feuille-Ciseaux ! ---");
+                    const choices = ["Pierre", "Feuille", "Ciseaux"];
+                    const computerChoice = choices[Math.floor(Math.random() * choices.length)];
+                    console.log("J'ai choisi : " + computerChoice);
+                    console.log("Pour jouer, tapez 'Mon_Choix_Y' où Y est votre choix. (Ex: Mon_Choix_Pierre)");
+                }
+            },
+            "Jeu_Attrape_Point": {
+                description: "Affiche un petit point rouge qui apparaît et disparaît sur la page.",
+                action: () => {
+                    console.log("--- Jeu : Attrape le point ! ---");
+                    console.log("Imaginez un point qui apparaît et disparaît. Vous l'avez attrapé ! 🎉");
+                    const dot = document.createElement('div');
+                    dot.style.cssText = `
+                        position: absolute;
+                        width: 10px;
+                        height: 10px;
+                        background-color: red;
+                        border-radius: 50%;
+                        top: ${Math.random() * 80 + 10}vh; /* Use vh for better positioning */
+                        left: ${Math.random() * 80 + 10}vw; /* Use vw for better positioning */
+                        transition: opacity 0.5s;
+                        z-index: 100;
+                    `;
+                    body.appendChild(dot);
+                    setTimeout(() => dot.style.opacity = '0', 800);
+                    setTimeout(() => { if (body.contains(dot)) body.removeChild(dot); }, 1300);
+                }
+            },
+            "Équation_Simple": {
+                description: "Propose une équation mathématique simple dans la console.",
+                action: () => {
+                    const num1 = Math.floor(Math.random() * 10) + 1;
+                    const num2 = Math.floor(Math.random() * 10) + 1;
+                    console.log(`--- Équation Mathématique ---`);
+                    console.log(`Quel est le résultat de ${num1} + ${num2} ?`);
+                    setTimeout(() => console.log(`La réponse est : ${num1 + num2}`), 3000);
+                }
+            },
+            "Problème_Logique_Math": {
+                description: "Propose un problème logique mathématique dans la console.",
+                action: () => {
+                    console.log(`--- Problème Logique ---`);
+                    console.log(`Si vous avez 3 pommes et que vous en donnez 1, combien en reste-t-il ?`);
+                    setTimeout(() => console.log(`La réponse est : 2 pommes ! 🍎🍎`), 3000);
+                }
+            },
+            "Fond_Arc_En_Ciel": {
+                description: "Anime le fond de la page avec un dégradé arc-en-ciel (persistant).",
+                action: () => {
+                    body.classList.add('bg-gradient-animated');
+                }
+            },
+            "Fond_Quadrillé": {
+                description: "Change le fond de la page en un motif quadrillé (persistant).",
+                action: () => {
+                    body.classList.add('bg-grid');
+                }
+            },
+            "Fond_Points_Pois": {
+                description: "Change le fond de la page en un motif à pois (persistant).",
+                action: () => {
+                    body.classList.add('bg-polka-dot');
+                }
+            },
+            "Fond_Rayures": {
+                description: "Change le fond de la page en un motif à rayures (persistant).",
+                action: () => {
+                    body.classList.add('bg-stripes');
+                }
+            },
+            "Fond_Couleur_Aléatoire": {
+                description: "Change le fond de la page en une couleur aléatoire (persistant).",
+                action: () => {
+                    const randomColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+                    body.style.backgroundColor = randomColor;
+                }
+            },
+            "Verrouillage_Temporaire": {
+                description: "Verrouille la zone de saisie en lecture seule temporairement.",
+                action: () => {
+                    textArea.readOnly = true;
+                    console.log("La zone de texte est verrouillée temporairement ! 🔒");
+                    setTimeout(() => {
+                        textArea.readOnly = false;
+                        console.log("La zone de texte est déverrouillée ! 🔓");
+                    }, 3000);
+                }
+            },
+            "Texte_Brouillé_Visuel": {
+                description: "Mélange les lettres du texte dans la zone de saisie temporairement.",
+                action: () => {
+                    const originalText = textArea.value;
+                    textArea.value = originalText.split('').sort(() => 0.5 - Math.random()).join(''); // Mélange
+                    setTimeout(() => textArea.value = originalText, 1000);
+                }
+            },
+            "Invasion_Lorem_Ipsum": {
+                description: "Remplace le texte par du 'Lorem Ipsum' temporairement.",
+                action: () => {
+                    const originalText = textArea.value;
+                    textArea.value = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.";
+                    setTimeout(() => textArea.value = originalText, 3000);
+                }
+            },
+            "Effet_Glitch_Visuel": {
+                description: "Applique un effet de 'glitch' visuel rapide à la page (temporaire).",
+                action: () => {
+                    body.style.filter = 'contrast(200%) hue-rotate(90deg)';
+                    setTimeout(() => body.style.filter = 'none', 300); // Glitch court
+                }
+            },
+            "Message_Furtif": {
+                description: "Affiche un message secret temporaire au centre de la page.",
+                action: () => {
+                    const tempMessage = document.createElement('div');
+                    tempMessage.textContent = "Je suis un message secret !";
+                    tempMessage.style.cssText = `
+                        position: fixed; /* Use fixed for better overlay */
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        background-color: rgba(0,0,0,0.7);
+                        color: white;
+                        padding: 15px 30px;
+                        border-radius: 10px;
+                        font-size: 1.5rem;
+                        opacity: 1;
+                        transition: opacity 1s ease-out;
+                        z-index: 1000;
+                    `;
+                    body.appendChild(tempMessage);
+                    setTimeout(() => tempMessage.style.opacity = '0', 2000);
+                    setTimeout(() => { if (body.contains(tempMessage)) body.removeChild(tempMessage); }, 3000);
+                }
+            },
+            "Son_Mystérieux_Console": {
+                description: "Affiche un message de son mystérieux dans la console.",
+                action: () => {
+                    console.log("Un son mystérieux résonne... 🎶 (Imaginez un 'whoosh' ou un 'ding')");
+                }
+            },
+            "Pluie_D_Emojis_Console": {
+                description: "Fait pleuvoir des emojis dans la console.",
+                action: () => {
+                    const emojis = ['✨', '🌟', '💫', '💖', '🎉', '🎊', '🎈', '🌈'];
+                    let rainCount = 0;
+                    const rainInterval = setInterval(() => {
+                        console.log(emojis[Math.floor(Math.random() * emojis.length)] + " ");
+                        rainCount++;
+                        if (rainCount > 10) clearInterval(rainInterval);
+                    }, 100);
+                    console.log("Il pleut des emojis !");
+                }
+            },
+            "Texte_Miroir_Inversé": {
+                description: "Inverse l'ordre des lettres du texte dans la zone de saisie temporairement.",
+                action: () => {
+                    const originalText = textArea.value;
+                    textArea.value = originalText.split('').reverse().join('');
+                    setTimeout(() => textArea.value = originalText, 2000);
+                }
+            },
+            "Effet_Machine_A_Ecrire": {
+                description: "Simule la saisie d'un texte comme sur une machine à écrire.",
+                action: () => {
+                    resetTextAreaStyles(); // Reset before typing to clear previous effects
+                    const originalValue = textArea.value;
+                    textArea.value = ""; // Clear current text for typing effect
+                    const textToType = "Ce texte apparaît comme si une machine à écrire le tapait...";
+                    let i = 0;
+                    const typingInterval = setInterval(() => {
+                        if (i < textToType.length) {
+                            textArea.value += textToType.charAt(i);
+                            i++;
+                        } else {
+                            clearInterval(typingInterval);
+                            setTimeout(() => textArea.value = originalValue, 1500); // Restore original text
+                        }
+                    }, 50);
+                }
+            },
+            "Zoom_Texte_Dynamique": {
+                description: "Fait pulser légèrement le texte de la zone de saisie temporairement.",
+                action: () => {
+                    textArea.classList.add('pulse-animation'); // Utilise pulse pour un zoom subtil
+                    setTimeout(() => textArea.classList.remove('pulse-animation'), 1000);
+                }
+            },
+            "Confettis_Virtuels_Console": {
+                description: "Affiche une explosion de confettis virtuels dans la console.",
+                action: () => {
+                    console.log("🎉🎊🎈✨ Confettis virtuels ! 🎉🎊🎈✨");
+                }
+            },
+            "Distorsion_Temporelle_Console": {
+                description: "Affiche un message de distorsion temporelle dans la console.",
+                action: () => {
+                    console.log("Le temps se distord... tout va plus vite ! Ou plus lentement ? ⏳🌀");
+                }
+            },
+            "Silence_Soudain_Console": {
+                description: "Affiche un message de silence assourdissant dans la console.",
+                action: () => {
+                    console.log("... Un silence assourdissant s'installe. 🤫");
+                }
+            },
+            "Gravité_Inversée_Console": {
+                description: "Affiche un message de gravité inversée dans la console.",
+                action: () => {
+                    console.log("Les mots flottent... la gravité est inversée ! ⬆️⬇️");
+                }
+            },
+            "Portail_Ouvert_Console": {
+                description: "Affiche un message d'ouverture de portail vers une autre dimension dans la console.",
+                action: () => {
+                    console.log("Un portail s'ouvre... vers une autre dimension ? 🌌🚪");
+                }
+            },
+            "Message_Secret_Révélé_Console": {
+                description: "Révèle un message secret dans la console.",
+                action: () => {
+                    console.log("Le message secret est : 'Le chat a atterri sur la lune.' 🤫🌕");
+                }
+            },
+            "Fait_Aléatoire_Console": {
+                description: "Affiche un fait aléatoire intéressant dans la console.",
+                action: () => {
+                    const facts = [
+                        "Les pieuvres ont trois cœurs.",
+                        "Le miel ne se gâte jamais.",
+                        "Un crocodile ne peut pas tirer sa langue.",
+                        "Les koalas dorment jusqu'à 20 heures par jour."
+                    ];
+                    console.log("Fait aléatoire : " + facts[Math.floor(Math.random() * facts.length)]);
+                }
+            },
+            "Fortune_Cookie_Console": {
+                description: "Affiche un message de 'fortune cookie' dans la console.",
+                action: () => {
+                    const fortunes = [
+                        "Une grande aventure vous attend.",
+                        "La patience est une vertu.",
+                        "Votre créativité vous mènera loin.",
+                        "Un ami inattendu vous apportera de la joie."
+                    ];
+                    console.log("Votre message de fortune : " + fortunes[Math.floor(Math.random() * fortunes.length)]);
+                }
+            },
+            "Tour_De_Magie_Console": {
+                description: "Affiche un message de tour de magie dans la console.",
+                action: () => {
+                    console.log("Abracadabra ! Votre café est maintenant... une licorne ! ✨🦄 (Imaginez)");
+                }
+            },
+            "Pensée_Soudaine_Console": {
+                description: "Affiche une pensée soudaine et amusante dans la console.",
+                action: () => {
+                    console.log("💡 Pensée soudaine : Et si les chaussettes perdues allaient sur une île tropicale ?");
+                }
+            },
+            "Jeu_Devine_Nombre": {
+                description: "Lance un jeu 'Devine le nombre' dans la console.",
+                action: () => {
+                    console.log("--- Jeu : Devine le nombre ! ---");
+                    const targetNumber = Math.floor(Math.random() * 10) + 1;
+                    console.log("J'ai choisi un nombre entre 1 et 10. Indice : le nombre est " + (targetNumber % 2 === 0 ? "pair" : "impair") + ".");
+                    console.log("Pour jouer, tapez 'Je_Devine_X' où X est votre supposition. (Ex: Je_Devine_5)");
+                }
+            },
+            "Jeu_Pierre_Ciseaux": {
+                description: "Lance un jeu 'Pierre-Feuille-Ciseaux' dans la console.",
+                action: () => {
+                    console.log("--- Jeu : Pierre-Feuille-Ciseaux ! ---");
+                    const choices = ["Pierre", "Feuille", "Ciseaux"];
+                    const computerChoice = choices[Math.floor(Math.random() * choices.length)];
+                    console.log("J'ai choisi : " + computerChoice);
+                    console.log("Pour jouer, tapez 'Mon_Choix_Y' où Y est votre choix. (Ex: Mon_Choix_Pierre)");
+                }
+            },
+            "Jeu_Attrape_Point": {
+                description: "Affiche un petit point rouge qui apparaît et disparaît sur la page.",
+                action: () => {
+                    console.log("--- Jeu : Attrape le point ! ---");
+                    console.log("Imaginez un point qui apparaît et disparaît. Vous l'avez attrapé ! 🎉");
+                    const dot = document.createElement('div');
+                    dot.style.cssText = `
+                        position: absolute;
+                        width: 10px;
+                        height: 10px;
+                        background-color: red;
+                        border-radius: 50%;
+                        top: ${Math.random() * 80 + 10}vh; /* Use vh for better positioning */
+                        left: ${Math.random() * 80 + 10}vw; /* Use vw for better positioning */
+                        transition: opacity 0.5s;
+                        z-index: 100;
+                    `;
+                    body.appendChild(dot);
+                    setTimeout(() => dot.style.opacity = '0', 800);
+                    setTimeout(() => { if (body.contains(dot)) body.removeChild(dot); }, 1300);
+                }
+            },
+            "Équation_Simple": {
+                description: "Propose une équation mathématique simple dans la console.",
+                action: () => {
+                    const num1 = Math.floor(Math.random() * 10) + 1;
+                    const num2 = Math.floor(Math.random() * 10) + 1;
+                    console.log(`--- Équation Mathématique ---`);
+                    console.log(`Quel est le résultat de ${num1} + ${num2} ?`);
+                    setTimeout(() => console.log(`La réponse est : ${num1 + num2}`), 3000);
+                }
+            },
+            "Problème_Logique_Math": {
+                description: "Propose un problème logique mathématique dans la console.",
+                action: () => {
+                    console.log(`--- Problème Logique ---`);
+                    console.log(`Si vous avez 3 pommes et que vous en donnez 1, combien en reste-t-il ?`);
+                    setTimeout(() => console.log(`La réponse est : 2 pommes ! 🍎🍎`), 3000);
+                }
+            },
+            "Fond_Arc_En_Ciel": {
+                description: "Anime le fond de la page avec un dégradé arc-en-ciel (persistant).",
+                action: () => {
+                    body.classList.add('bg-gradient-animated');
+                }
+            },
+            "Fond_Quadrillé": {
+                description: "Change le fond de la page en un motif quadrillé (persistant).",
+                action: () => {
+                    body.classList.add('bg-grid');
+                }
+            },
+            "Fond_Points_Pois": {
+                description: "Change le fond de la page en un motif à pois (persistant).",
+                action: () => {
+                    body.classList.add('bg-polka-dot');
+                }
+            },
+            "Fond_Rayures": {
+                description: "Change le fond de la page en un motif à rayures (persistant).",
+                action: () => {
+                    body.classList.add('bg-stripes');
+                }
+            },
+            "Fond_Couleur_Aléatoire": {
+                description: "Change le fond de la page en une couleur aléatoire (persistant).",
+                action: () => {
+                    const randomColor = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+                    body.style.backgroundColor = randomColor;
+                }
+            },
+            "Verrouillage_Temporaire": {
+                description: "Verrouille la zone de saisie en lecture seule temporairement.",
+                action: () => {
+                    textArea.readOnly = true;
+                    console.log("La zone de texte est verrouillée temporairement ! 🔒");
+                    setTimeout(() => {
+                        textArea.readOnly = false;
+                        console.log("La zone de texte est déverrouillée ! 🔓");
+                    }, 3000);
+                }
+            },
+            "Texte_Brouillé_Visuel": {
+                description: "Mélange les lettres du texte dans la zone de saisie temporairement.",
+                action: () => {
+                    const originalText = textArea.value;
+                    textArea.value = originalText.split('').sort(() => 0.5 - Math.random()).join(''); // Mélange
+                    setTimeout(() => textArea.value = originalText, 1000);
+                }
+            },
+            "Invasion_Lorem_Ipsum": {
+                description: "Remplace le texte par du 'Lorem Ipsum' temporairement.",
+                action: () => {
+                    const originalText = textArea.value;
+                    textArea.value = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.";
+                    setTimeout(() => textArea.value = originalText, 3000);
+                }
+            },
+            "Effet_Glitch_Visuel": {
+                description: "Applique un effet de 'glitch' visuel rapide à la page (temporaire).",
+                action: () => {
+                    body.style.filter = 'contrast(200%) hue-rotate(90deg)';
+                    setTimeout(() => body.style.filter = 'none', 300); // Glitch court
+                }
+            },
+            "Message_Furtif": {
+                description: "Affiche un message secret temporaire au centre de la page.",
+                action: () => {
+                    const tempMessage = document.createElement('div');
+                    tempMessage.textContent = "Je suis un message secret !";
+                    tempMessage.style.cssText = `
+                        position: fixed; /* Use fixed for better overlay */
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        background-color: rgba(0,0,0,0.7);
+                        color: white;
+                        padding: 15px 30px;
+                        border-radius: 10px;
+                        font-size: 1.5rem;
+                        opacity: 1;
+                        transition: opacity 1s ease-out;
+                        z-index: 1000;
+                    `;
+                    body.appendChild(tempMessage);
+                    setTimeout(() => tempMessage.style.opacity = '0', 2000);
+                    setTimeout(() => { if (body.contains(tempMessage)) body.removeChild(tempMessage); }, 3000);
+                }
+            },
+            "Son_Mystérieux_Console": {
+                description: "Affiche un message de son mystérieux dans la console.",
+                action: () => {
+                    console.log("Un son mystérieux résonne... 🎶 (Imaginez un 'whoosh' ou un 'ding')");
+                }
+            },
+            "Pluie_D_Emojis_Console": {
+                description: "Fait pleuvoir des emojis dans la console.",
+                action: () => {
+                    const emojis = ['✨', '🌟', '💫', '💖', '🎉', '🎊', '🎈', '🌈'];
+                    let rainCount = 0;
+                    const rainInterval = setInterval(() => {
+                        console.log(emojis[Math.floor(Math.random() * emojis.length)] + " ");
+                        rainCount++;
+                        if (rainCount > 10) clearInterval(rainInterval);
+                    }, 100);
+                    console.log("Il pleut des emojis !");
+                }
+            },
+            "Texte_Miroir_Inversé": {
+                description: "Inverse l'ordre des lettres du texte dans la zone de saisie temporairement.",
+                action: () => {
+                    const originalText = textArea.value;
+                    textArea.value = originalText.split('').reverse().join('');
+                    setTimeout(() => textArea.value = originalText, 2000);
+                }
+            },
+            "Effet_Machine_A_Ecrire": {
+                description: "Simule la saisie d'un texte comme sur une machine à écrire.",
+                action: () => {
+                    resetTextAreaStyles(); // Reset before typing to clear previous effects
+                    const originalValue = textArea.value;
+                    textArea.value = ""; // Clear current text for typing effect
+                    const textToType = "Ce texte apparaît comme si une machine à écrire le tapait...";
+                    let i = 0;
+                    const typingInterval = setInterval(() => {
+                        if (i < textToType.length) {
+                            textArea.value += textToType.charAt(i);
+                            i++;
+                        } else {
+                            clearInterval(typingInterval);
+                            setTimeout(() => textArea.value = originalValue, 1500); // Restore original text
+                        }
+                    }, 50);
+                }
+            },
+            "Zoom_Texte_Dynamique": {
+                description: "Fait pulser légèrement le texte de la zone de saisie temporairement.",
+                action: () => {
+                    textArea.classList.add('pulse-animation'); // Utilise pulse pour un zoom subtil
+                    setTimeout(() => textArea.classList.remove('pulse-animation'), 1000);
+                }
+            },
+            "Confettis_Virtuels_Console": {
+                description: "Affiche une explosion de confettis virtuels dans la console.",
+                action: () => {
+                    console.log("🎉🎊🎈✨ Confettis virtuels ! 🎉🎊🎈✨");
+                }
+            },
+            "Distorsion_Temporelle_Console": {
+                description: "Affiche un message de distorsion temporelle dans la console.",
+                action: () => {
+                    console.log("Le temps se distord... tout va plus vite ! Ou plus lentement ? ⏳🌀");
+                }
+            },
+            "Silence_Soudain_Console": {
+                description: "Affiche un message de silence assourdissant dans la console.",
+                action: () => {
+                    console.log("... Un silence assourdissant s'installe. 🤫");
+                }
+            },
+            "Gravité_Inversée_Console": {
+                description: "Affiche un message de gravité inversée dans la console.",
+                action: () => {
+                    console.log("Les mots flottent... la gravité est inversée ! ⬆️⬇️");
+                }
+            },
+            "Portail_Ouvert_Console": {
+                description: "Affiche un message d'ouverture de portail vers une autre dimension dans la console.",
+                action: () => {
+                    console.log("Un portail s'ouvre... vers une autre dimension ? 🌌🚪");
+                }
+            },
+            "Message_Secret_Révélé_Console": {
+                description: "Révèle un message secret dans la console.",
+                action: () => {
+                    console.log("Le message secret est : 'Le chat a atterri sur la lune.' 🤫🌕");
+                }
+            },
+            "Fait_Aléatoire_Console": {
+                description: "Affiche un fait aléatoire intéressant dans la console.",
+                action: () => {
+                    const facts = [
+                        "Les pieuvres ont trois cœurs.",
+                        "Le miel ne se gâte jamais.",
+                        "Un crocodile ne peut pas tirer sa langue.",
+                        "Les koalas dorment jusqu'à 20 heures par jour."
+                    ];
+                    console.log("Fait aléatoire : " + facts[Math.floor(Math.random() * facts.length)]);
+                }
+            },
+            "Fortune_Cookie_Console": {
+                description: "Affiche un message de 'fortune cookie' dans la console.",
+                action: () => {
+                    const fortunes = [
+                        "Une grande aventure vous attend.",
+                        "La patience est une vertu.",
+                        "Votre créativité vous mènera loin.",
+                        "Un ami inattendu vous apportera de la joie."
+                    ];
+                    console.log("Votre message de fortune : " + fortunes[Math.floor(Math.random() * fortunes.length)]);
+                }
+            },
+            "Tour_De_Magie_Console": {
+                description: "Affiche un message de tour de magie dans la console.",
+                action: () => {
+                    console.log("Abracadabra ! Votre café est maintenant... une licorne ! ✨🦄 (Imaginez)");
+                }
+            },
+            "Pensée_Soudaine_Console": {
+                description: "Affiche une pensée soudaine et amusante dans la console.",
+                action: () => {
+                    console.log("💡 Pensée soudaine : Et si les chaussettes perdues allaient sur une île tropicale ?");
+                }
+            }
+        };
+
+        let actionTimeoutId = null; // Variable pour stocker l'ID du timeout pour l'action
+        let indicatorTimeoutId = null; // Variable pour stocker l'ID du timeout pour l'indicateur de succès
+        let currentSeasonalInterval = null; // Pour gérer l'intervalle du cycle saisonnier
+
+        // Écouteur d'événements pour la saisie dans la zone de texte
+        textArea.addEventListener('input', () => {
+            const inputText = textArea.value;
+
+            // Annule tous les timeouts existants pour éviter les anciennes actions/indicateurs
+            if (actionTimeoutId) {
+                clearTimeout(actionTimeoutId);
+                actionTimeoutId = null;
+            }
+            if (indicatorTimeoutId) {
+                clearTimeout(indicatorTimeoutId);
+                indicatorTimeoutId = null;
+            }
+            if (currentSeasonalInterval) { // Arrête l'intervalle du cycle saisonnier précédent
+                clearInterval(currentSeasonalInterval);
+                currentSeasonalInterval = null;
+            }
+
+            // Réinitialise tous les styles avant d'appliquer de nouveaux effets
+            resetBodyStyles();
+            resetTextAreaStyles(); // Cela retire 'text-success-fade' et restaure les styles non-couleur
+
+            let foundPassword = false;
+
+            // Parcourt tous les mots de passe définis
+            for (const pwd in passwordActions) {
+                if (inputText === pwd) {
+                    const actionData = passwordActions[pwd];
+
+                    // Applique l'indicateur de succès subtil (texte vert)
+                    textArea.classList.add('text-success-fade');
+                    indicatorTimeoutId = setTimeout(() => {
+                        textArea.classList.remove('text-success-fade');
+                        indicatorTimeoutId = null;
+                    }, 1000); // Indicateur visible pendant 1 seconde
+
+                    // Définit un timeout pour exécuter l'action après 3 secondes
+                    actionTimeoutId = setTimeout(() => {
+                        actionData.action(); // Exécute l'action spécifique
+                        actionTimeoutId = null; // Réinitialise l'ID du timeout de l'action
+
+                        // Si l'action est le cycle saisonnier, stocke son ID d'intervalle pour le gérer
+                        if (pwd === "Cycle_Saisonnier") {
+                            const colors = ['#87CEEB', '#90EE90', '#FFA07A', '#DDA0DD']; // Spring, Summer, Autumn, Winter
+                            let i = 0;
+                            currentSeasonalInterval = setInterval(() => {
+                                body.style.backgroundColor = colors[i % colors.length];
+                                i++;
+                            }, 300);
+                        }
+
+                    }, 3000); // CHANGEMENT ICI : 3000 millisecondes = 3 secondes
+
+                    foundPassword = true;
+                    break; // Sort de la boucle une fois qu'un mot de passe est trouvé
+                }
+            }
+        });
+    </script>
+</body>
+</html>
